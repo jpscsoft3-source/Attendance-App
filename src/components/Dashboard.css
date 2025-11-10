@@ -1,0 +1,41 @@
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  /* background: linear-gradient(to right, #e0f7fa, #fce4ec); */
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.welcome-text {
+  font-size: 40px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 50px;
+}
+
+.dashboard-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-button {
+  font-size: 18px;
+  padding: 15px 30px;
+  width: 700px; /* ✅ Add this line to increase button width */
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: linear-gradient(to right, #4facfe, #00f2fe);
+  color: white;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-button:hover {
+  background-color: #0056b3;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}

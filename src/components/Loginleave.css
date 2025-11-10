@@ -1,0 +1,105 @@
+.login-container {
+  background: radial-gradient(circle at 30% 20%, rgba(150, 180, 255, 0.6), transparent 45%),
+              radial-gradient(circle at 80% 70%, rgba(180, 220, 255, 0.5), transparent 55%),
+              radial-gradient(circle at 60% 90%, rgba(130, 160, 200, 0.4), transparent 45%),
+              #e8efff;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+
+.login-form {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* Safari support */
+  padding: 30px 25px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 360px;
+}
+
+.login-heading {
+  text-align: center;
+  font-size: 22px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.login-row {
+   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.login-label {
+  width: 90px;
+  font-size: 15px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.login-input {
+   flex: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 15px;
+  background-color: rgba(0, 123, 255, 0.84);
+  backdrop-filter: blur(2px);
+  border: none;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.login-error {
+  color: red;
+  font-size: 0.85em;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+
+.password-wrapper {
+  position: relative;
+  flex: 1;
+  width: 100%;
+}
+
+.password-input {
+  padding-right: 40px; /* space for eye icon */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle:hover {
+  color: #007bff;
+}
+

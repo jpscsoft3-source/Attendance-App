@@ -1,0 +1,167 @@
+Full-screen container, centers content
+.worker-page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e0f2fe, #fef3c7); /* light gradient */
+  padding: 1rem;
+}
+
+/* Card container */
+.worker-card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.worker-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+}
+
+/* Title */
+.worker-card-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #0ea5e9; /* sky-blue */
+  margin-bottom: 1.5rem;
+}
+
+/* Info section */
+.worker-info {
+  background-color: #f0f9ff; /* light blue */
+  border-radius: 0.75rem;
+  padding: 1.25rem 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: inset 0 0 8px rgba(14, 165, 233, 0.1);
+}
+
+.worker-info p {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #1e293b; /* dark gray */
+  margin: 0.4rem 0;
+}
+
+.label {
+  font-weight: 600;
+  color: #0ea5e9; /* sky-blue */
+}
+
+/* Optional: Add a subtle footer note */
+.note {
+  font-size: 0.85rem;
+  color: #64748b; /* gray-500 */
+  margin-top: 1rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .worker-card {
+    padding: 1.25rem;
+  }
+
+  .worker-card-title {
+    font-size: 1.5rem;
+  }
+
+  .worker-info p {
+    font-size: 1rem;
+  }
+}
+.worker-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.worker-actions button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.btn-submit {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn-submit:hover {
+  background-color: #45a049;
+}
+
+.btn-salary {
+  background-color: #2196f3;
+  color: white;
+}
+
+.btn-salary:hover {
+  background-color: #0b7dda;
+}
+
+.btn-copy-link {
+  background-color: #f39c12;
+  color: white;
+}
+
+.btn-copy-link:hover {
+  background-color: #d48806;
+}
+.guj-name {
+  font-family: "Noto Sans Gujarati", "Shruti", sans-serif;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  width: 300px;
+  text-align: center;
+  box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content h3 {
+  margin-bottom: 15px;
+}
+
+.modal-content p {
+  margin: 10px 0;
+}
+
+.btn-close {
+  margin-top: 15px;
+  padding: 8px 15px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background-color: #0056b3;
+}

@@ -1,0 +1,342 @@
+/* .attendance-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 24px;
+  background: #f7faff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.attendance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-btn {
+  background: #0077cc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.admin-btn:hover {
+  background: #005fa3;
+}
+
+.attendance-card {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.attendance-card p {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.btn-submit {
+  background-color: #28a745;
+  color: white;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 12px;
+}
+
+.btn-submit:disabled {
+  background-color: #8bd69d;
+  cursor: not-allowed;
+}
+
+.alert-msg {
+  margin-top: 20px;
+  background-color: #eaf4ff;
+  padding: 10px;
+  border-left: 5px solid #3498db;
+  border-radius: 6px;
+  font-size: 15px;
+} */
+.attendance-container {
+  width: 48.2%;               /* covers 50% horizontally */
+  min-height: 22vh;         /* at least 25% vertically */
+  margin: 20px;             /* spacing from top and left */
+  padding: 16px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #f7faff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* allow natural flow */
+  box-sizing: border-box;
+}
+
+
+
+.attendance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;      /* let it take full width of the container */
+  height: auto;     /* remove fixed height so text adjusts */
+  white-space: nowrap;  /* prevent text wrapping */
+  gap: 10px;        /* small spacing between items */
+}
+
+
+.admin-btn {
+  background: #0077cc;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-size: 14px;
+}
+
+.admin-btn:hover {
+  background: #005fa3;
+}
+
+.attendance-card {
+  background: #ffffff;
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-top: 15px;
+}
+
+.attendance-card p {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.btn-submit {
+  background-color: #28a745;
+  color: white;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+  margin-left: 10px;
+}
+
+.btn-submit:disabled {
+  background-color: #8bd69d;
+  cursor: not-allowed;
+}
+
+.alert-msg {
+  margin-top: 12px;
+  background-color: #eaf4ff;
+  padding: 8px;
+  border-left: 4px solid #3498db;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.attendance-summary {
+  position: fixed;      /* Fix it at bottom-left */
+  bottom: 0;
+  left: 0;
+  width: 48%;           /* Half the page width */
+  height: 40%;          /* Half the page height */
+  overflow-y: auto;     /* Scroll if content exceeds height */
+  background-color: #f7f7f7; /* Optional background */
+  padding: 16px;
+  box-sizing: border-box;
+  border-top: 2px solid #ccc;
+  border-right: 2px solid #ccc;
+  border-radius: 8px 8px 8px 8px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+  margin-left: 1.5%;
+  margin-bottom: 2%;
+}
+
+.attendance-summary table {
+  width: 100%;
+  height: 10%;
+  border-collapse: collapse;
+}
+
+.attendance-summary th,
+.attendance-summary td {
+  border: 1px solid blue;
+  padding: 8px;
+  text-align: center;
+}
+
+.attendance-summary th {
+  background-color: blue;
+  position: sticky;      /* Keep headers visible when scrolling */
+  top: 0;
+}
+.attendance-details {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 48%;       /* right half of the page */
+  height: 93.2%;     /* full height */
+  overflow-y: auto;
+  background-color: #fefefe;
+  padding: 16px;
+  box-sizing: border-box;
+  border-left: 2px solid #ccc;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+ margin-right: 1.5%;
+  margin-top: 1.5%;
+  border-radius: 8px 8px 8px 8px;
+  border-bottom: 20px;
+
+}
+
+.attendance-details table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.attendance-details th,
+.attendance-details td {
+  border: 1px solid blue;
+  padding: 8px;
+  text-align: center;
+}
+
+.attendance-details th {
+  background-color: blue;
+  position: sticky;
+  top: 0;
+}
+.salary-btn {
+  margin-top: 20px;
+  margin-left: 73%;
+  padding: 10px 20px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.salary-btn:hover {
+  background-color: #45a049;
+}
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6); /* semi-transparent background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Modal Box */
+.modal-box {
+  background: #ffffff;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 450px;
+  width: 90%;
+  text-align: center;
+  animation: slideIn 0.3s ease-in-out;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Modal Heading */
+.modal-box h2 {
+  font-size: 1.6rem;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+/* Modal Text */
+.modal-box p {
+  font-size: 1rem;
+  margin: 8px 0;
+  color: #34495e;
+}
+
+/* Final Salary Highlight */
+.modal-box h3 {
+  margin-top: 20px;
+  color: #27ae60;
+  font-size: 1.3rem;
+}
+
+/* Close Button */
+.modal-box button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border: none;
+  background: #2980b9;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.modal-box button:hover {
+  background: #1c5980;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.logout-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 999;
+  margin-right: 1.3%;
+  margin-top: 0.5%;
+}
+
+.logout-button {
+  background-color: #393185;
+  color: white;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+  background-color: #2e2b6c;
+  transform: scale(1.05);
+}
