@@ -108,7 +108,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",                    // local React dev
-    "https://jpscube-attendance-leave.netlify.app" // 🚫 no trailing slash here!
+    "https://jpsc-attendance.netlify.app" // 🚫 no trailing slash here!
   ],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
