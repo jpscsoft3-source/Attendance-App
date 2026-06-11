@@ -153,7 +153,15 @@ useEffect(() => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const responsible = localStorage.getItem("responsible")?.trim().toLowerCase();
+
     for (const key in formData) {
+
+  // ✅ Skip leaveType validation for interns
+      if (responsible === "intern" && key === "leaveType") {
+        continue;
+      }
+
       if (!formData[key]) {
         toast.error(`Please fill ${key}`, { position: "top-center" });
         return;
@@ -174,12 +182,12 @@ useEffect(() => {
       return;
     }
 
-    if (dynamicRemainingLeaves[formData.leaveType] <= 0) {
-      toast.error(`No remaining ${formData.leaveType} leaves`, {
-        position: "top-center",
-      });
-      return;
-    }
+    if (responsible !== "intern" && dynamicRemainingLeaves[formData.leaveType] <= 0) {
+  toast.error(`No remaining ${formData.leaveType} leaves`, {
+    position: "top-center",
+  });
+  return;
+}
 
 
 

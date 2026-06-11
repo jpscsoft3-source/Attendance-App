@@ -49,51 +49,86 @@ const WorkerLinkPage = () => {
   const time = currentTime.toLocaleTimeString("en-GB");
   const formatTime = () => currentTime.toLocaleTimeString("en-GB");
 
-  const handleSubmitAttendance = async () => {
-    if (!empId || submitting) return;
-    setSubmitting(true);
+ const handleSubmitAttendance = async () => {
+  if (!empId || submitting) return;
 
-    try {
-      const todayDate = date;
-      const currentTimeStr = formatTime();
+  setSubmitting(true);
 
-      const q = query(
-        collection(db, "attendance"),
-        where("employee_id", "==", empId),
-        where("date", "==", todayDate)
-      );
+  try {
+    const todayDate = date;
+    const currentTimeStr = formatTime();
 
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        alert("⚠️ Attendance already submitted today!");
-        setSubmitting(false);
-        return;
-      }
+    const q = query(
+      collection(db, "attendance"),
+      where("employee_id", "==", empId),
+      where("date", "==", todayDate)
+    );
 
+    const snap = await getDocs(q);
+
+    // =========================
+    // FIRST ENTRY = IN TIME
+    // =========================
+    if (snap.empty) {
       const cleanDate = todayDate.replace(/\//g, "-");
-      const cleanTime = currentTimeStr.replace(/:/g, "-").replace(/ /g, "");
-      const docId = `${empId}_${cleanDate}_${cleanTime}`;
+
+      // ONLY ONE DOCUMENT PER DAY
+      const docId = `${empId}_${cleanDate}`;
+
       const todayRef = doc(db, "attendance", docId);
 
       await setDoc(todayRef, {
         employee_id: empId,
         name: name,
         date: todayDate,
+
         in_time: currentTimeStr,
         out_time: null,
+
         statusIn: "pending",
         statusOut: "pending",
+
         timestamp: serverTimestamp(),
       });
 
-      alert(`✅ Attendance submitted successfully! In & Out are pending.`);
-    } catch (err) {
-      console.error("Error submitting attendance:", err);
-      alert("❌ Error submitting attendance!");
+      alert("✅ In Time submitted successfully!");
     }
 
-    setSubmitting(false);
-  };
+    // =========================
+    // SECOND ENTRY = OUT TIME
+    // =========================
+    else {
+      const existingDoc = snap.docs[0];
+      const existingData = existingDoc.data();
+
+      // OUT TIME NOT MARKED YET
+      if (!existingData.out_time) {
+        const todayRef = doc(db, "attendance", existingDoc.id);
+
+        await setDoc(
+          todayRef,
+          {
+            out_time: currentTimeStr,
+            statusOut: "pending",
+          },
+          { merge: true }
+        );
+
+        alert("✅ Out Time submitted successfully!");
+      }
+
+      // BOTH ALREADY MARKED
+      else {
+        alert("⚠️ Attendance already completed today!");
+      }
+    }
+  } catch (err) {
+    console.error("Error submitting attendance:", err);
+    alert("❌ Error submitting attendance!");
+  }
+
+  setSubmitting(false);
+};
 
   // Calculate salary dynamically
   // const handleSalaryCalculator = async () => {

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { useNavigate } from 'react-router-dom'; // at the top of your file
+// import * as XLSX from "xlsx";
+// import { saveAs } from "file-saver";
 
 import {
   collection,
@@ -62,9 +64,13 @@ const [otpSent, setOtpSent] = useState(false);
 const [enteredOtp, setEnteredOtp] = useState("");
 const [showOtpModal, setShowOtpModal] = useState(false);
 const [suggestions, setSuggestions] = useState([]);
-
-
-  
+const [downloadModal, setDownloadModal] = useState(false);
+const [selectedEmployees, setSelectedEmployees] = useState([]);
+const [fromDate, setFromDate] = useState("");
+const [toDate, setToDate] = useState("");
+const [showNoteModal, setShowNoteModal] = useState(false);
+const [noteText, setNoteText] = useState("");
+const [selectedRecord, setSelectedRecord] = useState(null);  
 const navigate = useNavigate(); // inside your component
 
 
@@ -109,7 +115,20 @@ const fetchAttendance = async () => {
 
 
 
-
+const toggleEmployee = (empId) => {
+  setSelectedEmployees((prev) =>
+    prev.includes(empId)
+      ? prev.filter((id) => id !== empId)
+      : [...prev, empId]
+  );
+};
+const handleSelectAll = () => {
+  const allIds = employeeStats.map((emp) => emp.id);
+  setSelectedEmployees(allIds);
+};
+const handleClearSelection = () => {
+  setSelectedEmployees([]);
+};
 const fetchEmployeeStats = async (startDate, endDate, label = "") => {
   const empSnap = await getDocs(collection(db, "Users"));
 
@@ -139,16 +158,19 @@ const fetchEmployeeStats = async (startDate, endDate, label = "") => {
     });
 
     // ✅ Calculate Present / Absent counts
-    const totalPresent = empRecords.filter(r =>
-      (r.statusIn === "approved" && r.statusOut === "approved") ||
-      r.status === "approved"
-    ).length;
+    const totalPresent = empRecords.filter(
+  (r) =>
+    r.statusIn === "approved" &&
+    r.statusOut === "approved" &&
+    r.in_time !== "WeeklyOff"
+).length;
 
-    const totalAbsent = empRecords.filter(r =>
-      (r.statusIn === "disapproved" && r.statusOut === "disapproved") ||
-      r.status === "disapproved"
-    ).length;
-
+ const totalAbsent = empRecords.filter(
+  (r) =>
+    r.statusIn === "disapproved" &&
+    r.statusOut === "disapproved" &&
+    r.in_time !== "WeeklyOff"
+).length;
     const latestInRecord = empRecords
       .filter(r => r.in_time)
       .sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate())[0];
@@ -162,6 +184,7 @@ const fetchEmployeeStats = async (startDate, endDate, label = "") => {
       Role: emp.Role || "N/A",
       subRole: emp.SubDesignation || "—",
       responsible: emp.responsible || "—",
+      weeklyOff: emp.weeklyOff || "—",   // ✅ NEW
       present: totalPresent,
       absent: totalAbsent,
 
@@ -339,7 +362,162 @@ const handleMarkAbsent = async () => {
   setShowAbsentModal(false);
   setSelectedAbsentDates({});
 };
+const handleDownloadSelected = async () => {
 
+  if (selectedEmployees.length === 0) {
+    alert("Please select at least one employee.");
+    return;
+  }
+
+  if (!fromDate || !toDate) {
+    alert("Please select From and To date.");
+    return;
+  }
+
+  try {
+
+    const startDate = new Date(fromDate);
+    const endDate = new Date(toDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    const attendanceSnap = await getDocs(collection(db, "attendance"));
+    const attendanceData = attendanceSnap.docs.map(doc => doc.data());
+
+    const workbook = XLSX.utils.book_new();
+
+    // Function to generate all dates between range
+    const getDatesBetween = (start, end) => {
+      const dates = [];
+      let current = new Date(start);
+
+      while (current <= end) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+      }
+
+      return dates;
+    };
+
+    for (const empId of selectedEmployees) {
+
+      const emp = employeeStats.find(e => e.id === empId);
+      const empName = emp?.Name || empId;
+
+      // Fetch employee weekly off
+      const userSnap = await getDocs(
+        query(collection(db, "Users"), where("username", "==", empId))
+      );
+
+      let weeklyOffDay = null;
+
+      if (!userSnap.empty) {
+        weeklyOffDay = userSnap.docs[0].data().weeklyOff;
+      }
+
+      const empRecords = attendanceData
+        .filter(a => {
+
+          const attDate = a.timestamp?.toDate?.();
+
+          return (
+            a.employee_id === empId &&
+            attDate &&
+            attDate >= startDate &&
+            attDate <= endDate
+          );
+
+        })
+        .sort((a, b) => {
+          const dateA = a.timestamp?.toDate?.() || new Date(0);
+          const dateB = b.timestamp?.toDate?.() || new Date(0);
+          return dateA - dateB;
+        });
+
+      const allDates = getDatesBetween(startDate, endDate);
+
+      const sheetData = allDates.map(date => {
+
+        const record = empRecords.find(r => {
+          const attDate = r.timestamp?.toDate?.();
+          return attDate && attDate.toDateString() === date.toDateString();
+        });
+
+        const dateStr = date.toLocaleDateString("en-GB");
+
+        if (record) {
+          return {
+            Date: record.date || dateStr,
+            "In Time": record.in_time || "—",
+            "Out Time": record.out_time || "—",
+            "Approved By": record.approvedByOut || "—",
+            "In Location": record.in_location || "—",
+            "Out Location": record.out_location || "—"
+          };
+        }
+
+        const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+
+        if (weeklyOffDay && dayName === weeklyOffDay) {
+          return {
+            Date: dateStr,
+            "In Time": "Weekly Off",
+            "Out Time": "Weekly Off",
+            "Approved By": "—",
+            "In Location": "—",
+            "Out Location": "—"
+          };
+        }
+
+        return {
+          Date: dateStr,
+          "In Time": "Leave",
+          "Out Time": "Leave",
+          "Approved By": "—",
+          "In Location": "—",
+          "Out Location": "—"
+        };
+
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(sheetData);
+      
+
+      worksheet["!cols"] = [
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 20 },
+        { wch: 35 },
+        { wch: 35 }
+      ];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        empName.substring(0, 31)
+      );
+
+    }
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array"
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    saveAs(blob, `Attendance_${fromDate}_to_${toDate}.xlsx`);
+
+  } catch (error) {
+
+    console.error("Download Error:", error);
+    alert("Error generating attendance file.");
+
+  }
+
+};
 const handleSearchChange = async (e) => {
   const value = e.target.value.trim();
   setDeleteEmpId(value);
@@ -455,7 +633,37 @@ const getRolePrefix = (role) => {
   }
 };
 
+const getEmployeeWeeklyOffCount = (weeklyOffDay, startDate, endDate) => {
 
+  if (!weeklyOffDay) return 0;
+
+  const daysMap = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6
+  };
+
+  const offDayIndex = daysMap[weeklyOffDay.toLowerCase()];
+  if (offDayIndex === undefined) return 0;
+
+  let count = 0;
+  let current = new Date(startDate);
+
+  while (current <= endDate) {
+
+    if (current.getDay() === offDayIndex) {
+      count++;
+    }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return count;
+};
 const handleRoleChange = async (roleValue) => {
   // First update role in state
   setNewEmp((prev) => ({ ...prev, responsible: roleValue }));
@@ -772,10 +980,13 @@ const getTotalPaidHolidaysInRange = (startDate, endDate) => {
 
 
   const handleAddEmployee = async () => {
-  const { empId, Name, Role, username, password, mobile, salary, SubDesignation, responsible } = newEmp;
+const { empId, Name, Role, username, password, mobile, salary, SubDesignation, responsible, weeklyOff } = newEmp;
 
   // Determine roles
   const isWorkerOrIntern =
+    responsible?.toLowerCase() === "worker/helper";
+
+  const isWI =
     responsible?.toLowerCase() === "worker/helper" ||
     responsible?.toLowerCase() === "intern";
 
@@ -798,18 +1009,19 @@ const getTotalPaidHolidaysInRange = (startDate, endDate) => {
   }
 
   // SubDesignation only required for non-worker/helper and non-intern
-  if (!isWorkerOrIntern && !SubDesignation) {
+  if (!isWI && !SubDesignation) {
     alert("⚠️ Please enter Sub-Designation.");
     return;
   }
 
   const userDoc = {
-    Name,
-    username,
-    mobile,
-    responsible,
-    empId: empId.trim().toUpperCase(),
-  };
+  Name,
+  username,
+  mobile,
+  responsible,
+  empId: empId.trim().toUpperCase(),
+  weeklyOff: weeklyOff || ""   // ✅ NEW
+};
 
   // Add fields conditionally
   if (!isWorkerOrIntern) {
@@ -839,6 +1051,7 @@ const getTotalPaidHolidaysInRange = (startDate, endDate) => {
       password: "",
       mobile: "",
       salary: "",
+      weeklyOff: ""   // ✅ NEW
     });
     setAddModal(false);
 
@@ -867,6 +1080,7 @@ const handleRowClick = async (emp) => {
     let data = snapshot.docs.map((doc) => {
       const d = doc.data();
 
+
       // Format approval timestamps
       const approvalDateTimeIn =
         d.approved_at_in?.toDate?.().toLocaleString("en-IN", {
@@ -886,7 +1100,7 @@ const handleRowClick = async (emp) => {
           year: "numeric"
         }) || "—";
 
-      return { ...d, approvalDateTimeIn, approvalDateTimeOut };
+      return {id: doc.id,...d, approvalDateTimeIn, approvalDateTimeOut };
     });
 
     // ✅ Filter by date range (or default to current month)
@@ -1144,20 +1358,21 @@ useEffect(() => {
   }, []);
 const handleSaveEdit = async (emp) => {
   try {
-    const userRef = doc(db, "Users", emp.id); // emp.id should be your doc ID
+    const userRef = doc(db, "Users", emp.id);
+
     await updateDoc(userRef, {
       Name: emp.Name,
       Role: emp.Role,
       salary: emp.salary || 0,
       SubDesignation: emp.subRole,
-      responsible: emp.responsible
+      responsible: emp.responsible,
+      weeklyOff: emp.weeklyOff || ""   // ✅ NEW FIELD
     });
 
     alert("✅ Employee updated successfully!");
     setShowEditModal(false);
 
-    // Refresh stats after update
-    fetchEmployeeStats(new Date("2000-01-01"), new Date(), "All Employees"); 
+    fetchEmployeeStats(new Date("2000-01-01"), new Date(), "All Employees");
   } catch (error) {
     console.error("Error updating employee:", error);
     alert("❌ Failed to update employee.");
@@ -1344,7 +1559,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 >
   Logout
 </button>
-<p className="app-version">Version 1.1.6</p>
+<p className="app-version">Version 1.1.7</p>
 
 </div>
 
@@ -1393,7 +1608,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
         <th>Sub-Designation</th>
         <th>Role</th>
         <th>Total Days</th>
-        <th>Sundays (Uptill now)</th>
+        <th>Weekly Off (Uptill now)</th>
         <th>Total Present</th>
         <th>Total Absent</th>
         <th>In Time</th>
@@ -1428,12 +1643,16 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
                 )}
           </td>
           <td>
-            {dateRange?.startDate && dateRange?.endDate
-              ? getTotalPaidHolidaysInRange(dateRange.startDate, dateRange.endDate)
-              : getTotalPaidHolidaysInRange(
-                  new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                  new Date()
-                )}
+            {getEmployeeWeeklyOffCount(
+              emp.weeklyOff,
+              dateRange?.startDate
+                ? dateRange.startDate
+                : new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+
+              dateRange?.endDate
+                ? dateRange.endDate
+                : new Date()
+            )}
           </td>
 
           <td>{emp.present}</td>
@@ -1556,6 +1775,19 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
   <button className="btn-action" onClick={() => setShowModal(true)}>✅ Show Approvals</button>
   <button className="btn-action" onClick={() => setAddModal(true)}>➕ Add Employee</button>
   <button className="btn-action" onClick={() => setDeleteModal(true)}>🗑 Remove Employee</button>
+<button
+  className="btn-action"
+  onClick={() => setDownloadModal(true)}
+>
+  📥 Download Attendance
+</button>{/* 
+  <button
+  className="admin-button mt-2"
+  // onClick={handleDownloadAttendance}
+>
+  📥 Download Attendance
+</button> */}
+
   {/* <button
       className="btn-action"
       onClick={() => setShowSalaryModal(true)}
@@ -1675,6 +1907,22 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
           className="admin-input mb-4"
         />
       )}
+      {/* Weekly Off */}
+      {/* <label>Weekly Off</label> */}
+      <select
+        value={newEmp.weeklyOff || ""}
+        onChange={(e) => setNewEmp({ ...newEmp, weeklyOff: e.target.value })}
+        className="admin-input mb-4"
+      >
+        <option value="">Select Weekly Off</option>
+        <option value="Sunday">Sunday</option>
+        <option value="Monday">Monday</option>
+        <option value="Tuesday">Tuesday</option>
+        <option value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
+      </select>
 
       {/* Salary */}
       {/* <input
@@ -1711,6 +1959,8 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
               <th>Date</th>
               <th>In Time</th>
               <th>Out Time</th>
+              <th>In Location</th>
+              <th>Out Location</th>
               <th>Status (In/Out)</th>
               <th>Action</th>
             </tr>
@@ -1720,11 +1970,24 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
               .filter(entry => entry.statusIn === "pending" || entry.statusOut === "pending")
               .map((entry) => (
                 <tr key={entry.id}>
-                  <td>{entry.employee_id}</td>
-                  <td>{entry.name}</td>
-                  <td>{entry.date}</td>
-                  <td>{entry.in_time || "❌ Not Marked"}</td>
-                  <td>{entry.out_time || "❌ Not Marked"}</td>
+                <td>{entry.employee_id}</td>
+                <td>{entry.name}</td>
+                <td>{entry.date}</td>
+                <td>{entry.in_time || "❌ Not Marked"}</td>
+                <td>{entry.out_time || "❌ Not Marked"}</td>
+
+                <td>
+                  {entry.in_address === "Outside Company Location" || entry.in_address === "Unknown Location"
+                    ? `${entry.in_latitude || "-"}, ${entry.in_longitude || "-"}`
+                    : entry.in_address || "—"}
+                </td>
+
+                <td>
+                  {entry.out_address === "Outside Company Location" || entry.out_address === "Unknown Location"
+                    ? `${entry.out_latitude || "-"}, ${entry.out_longitude || "-"}`
+                    : entry.out_address || "—"}
+                </td>
+                  
                   <td>
                     <span className={entry.statusIn === "pending" ? "badge-pending" : "badge-approved"}>
                       In: {entry.statusIn || "N/A"}
@@ -1862,7 +2125,85 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
   </div>
 )}
 
+{downloadModal && (
+  <div className="modal-overlay">
+    <div className="modal-box">
+      <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+        <div>
+          <label>From Date</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="admin-input"
+          />
+        </div>
 
+        <div>
+          <label>To Date</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="admin-input"
+          />
+        </div>
+      </div>
+      <h2>📥 Select Employees</h2>
+
+      <div style={{ maxHeight: "300px", overflowY: "auto", marginTop: "10px" }}>
+        <table className="admin-table" style={{ width: "100%" }}>
+          <thead>
+            <tr>
+              <th style={{ width: "60px", textAlign: "center" }}>Select</th>
+              <th>Employee ID</th>
+              <th>Name</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {employeeStats.map((emp) => (
+              <tr key={emp.id}>
+                <td style={{ textAlign: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedEmployees.includes(emp.id)}
+                    onChange={() => toggleEmployee(emp.id)}
+                  />
+                </td>
+
+                <td>{emp.id}</td>
+                <td>{emp.Name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="modal-actions" style={{ marginTop: "15px" }}>
+        <button className="admin-button"   onClick={handleDownloadSelected}
+>
+          ⬇ Download
+        </button>
+
+        <button className="admin-button" onClick={handleClearSelection}>
+          🧹 Clear
+        </button>
+
+        <button className="admin-button" onClick={handleSelectAll}>
+          ✔ Select All
+        </button>
+
+        <button
+          className="admin-button"
+          onClick={() => setDownloadModal(false)}
+        >
+          ✖ Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 {showHistoryModal && (
   <div className="attendance-history-overlay">
     <div className="attendance-history-box">
@@ -1879,17 +2220,21 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
       <div className="attendance-history-table-container">
         <table className="attendance-history-table">
           <thead>
-            <tr>
-              <th>Date</th>
-              <th>Status In</th>
-              <th>Approved By (In)</th>
-              <th>In Time</th>
-              <th>Status Out</th>
-              <th>Approved By (Out)</th>
-              <th>Out Time</th>
-              <th>Approval Date</th>
-            </tr>
-          </thead>
+          <tr>
+            <th>Date</th>
+            <th>Status In</th>
+            <th>Approved By (In)</th>
+            <th>In Time</th>
+            <th>In Location</th>   {/* NEW */}
+            <th>Status Out</th>
+            <th>Approved By (Out)</th>
+            <th>Out Time</th>
+            <th>Out Location</th>  {/* NEW */}
+            <th>Approval Date</th>
+            <th>Note</th>   {/* NEW */}
+
+          </tr>
+        </thead>
           <tbody>
             {attendanceHistory
               .slice()
@@ -1909,15 +2254,46 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 
                 return (
                   <tr key={idx} className={rowClass}>
-                    <td>{record.date || "—"}</td>
-                    <td>{record.statusIn || "—"}</td>
-                    <td>{record.approvedByIn || "—"}</td>
-                    <td>{record.in_time || "—"}</td>
-                    <td>{record.statusOut || "—"}</td>
-                    <td>{record.approvedByOut || "—"}</td>
-                    <td>{record.out_time || "—"}</td>
-                    <td>{record.approvalDateTimeOut}</td>
-                  </tr>
+                  <td>{record.date || "—"}</td>
+                  <td>{record.statusIn || "—"}</td>
+                  <td>{record.approvedByIn || "—"}</td>
+                  <td>{record.in_time || "—"}</td>
+
+                  {/* ✅ In Location */}
+                  <td>
+                    {record.in_address === "Outside Company Location" ||
+                    record.in_address === "Unknown Location"
+                      ? `${record.in_latitude || "-"}, ${record.in_longitude || "-"}`
+                      : record.in_address || "—"}
+                  </td>
+
+                  <td>{record.statusOut || "—"}</td>
+                  <td>{record.approvedByOut || "—"}</td>
+                  <td>{record.out_time || "—"}</td>
+
+                  {/* ✅ Out Location */}
+                  <td>
+                    {record.out_address === "Outside Company Location" ||
+                    record.out_address === "Unknown Location"
+                      ? `${record.out_latitude || "-"}, ${record.out_longitude || "-"}`
+                      : record.out_address || "—"}
+                  </td>
+
+                  <td>{record.approvalDateTimeOut}</td>
+                  <td>
+                  <button
+                  className="note-btn"
+                  onClick={() => {
+                    setSelectedRecord(record);
+                    setNoteText(record.admin_note || "");
+                    setShowHistoryModal(false);
+                    setShowNoteModal(true);
+                  }}
+                >
+                  {record.admin_note ? "View Note" : "Add Note"}
+                </button>
+                </td>
+                </tr>
                 );
               })}
           </tbody>
@@ -1929,7 +2305,48 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 
 {/* //new */}
 
+{showNoteModal && (
+  <div className="note-overlay">
+    <div className="note-box">
+      <h3>Add Note</h3>
 
+      <textarea
+        placeholder="Write your note here..."
+        value={noteText}
+        onChange={(e) => setNoteText(e.target.value)}
+      />
+
+      <div className="note-buttons">
+        <button
+          onClick={async () => {
+            try {
+              if (!selectedRecord?.id) return;
+
+              const attendanceRef = doc(db, "attendance", selectedRecord.id);
+
+              await updateDoc(attendanceRef, {
+                admin_note: noteText,
+                note_updated_at: new Date()
+              });
+
+              console.log("Note saved successfully");
+
+              setShowNoteModal(false);
+              setNoteText("");
+
+            } catch (error) {
+              console.error("Error saving note:", error);
+            }
+          }}
+        >
+          Save
+        </button>
+
+        <button onClick={() => setShowNoteModal(false)}>Cancel</button>
+      </div>
+    </div>
+  </div>
+)}
 
 
 {(showPresentModal || showAbsentModal) && (
@@ -2063,6 +2480,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
   </div>
 )}
 
+
 {showEditModal && editEmployee && (
   <div className="modal-overlay">
     <div className="modal-box">
@@ -2094,15 +2512,23 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
         value={editEmployee.subRole}
         onChange={(e) => setEditEmployee({ ...editEmployee, subRole: e.target.value })}
       />
-
-      <label>Salary</label>
-      <input
-        type="number"
-        value={editEmployee.salary || ""}
+      <label>Weekly Off</label>
+      <select
+        className="modal-input"
+        value={editEmployee.weeklyOff || ""}
         onChange={(e) =>
-          setEditEmployee({ ...editEmployee, salary: parseInt(e.target.value) || 0 })
+          setEditEmployee({ ...editEmployee, weeklyOff: e.target.value })
         }
-      />
+      >
+        <option value="">Select Day</option>
+        <option value="Sunday">Sunday</option>
+        <option value="Monday">Monday</option>
+        <option value="Tuesday">Tuesday</option>
+        <option value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
+      </select>
 
       <div className="modal-actions">
         <button onClick={() => setShowEditModal(false)}>Cancel</button>

@@ -74,6 +74,7 @@ const Dashboard = () => {
 
   const handleLeaveNavigation = () => {
     const responsible = localStorage.getItem('responsible')?.trim().toLowerCase();
+    console.log(responsible);
     if (!responsible) {
       alert('Session missing. Please login again.');
       navigate('/');
@@ -82,6 +83,7 @@ const Dashboard = () => {
 
     switch (responsible) {
       case 'employee': navigate('/request'); break;
+      case 'intern': navigate('/request'); break;
       case 'supervisor': navigate('/supervisor-req'); break;
       case 'manager': navigate('/manager'); break;
       default: navigate('/manager');

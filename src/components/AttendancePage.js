@@ -33,7 +33,10 @@ const [dailyAttendance, setDailyAttendance] = useState([]);
 const [monthlySummary, setMonthlySummary] = useState([]);
 const [showSalary, setShowSalary] = useState(false);
 const [salaryDetails, setSalaryDetails] = useState(null);
-
+const [location, setLocation] = useState(null);
+const [address, setAddress] = useState("");
+const [empID, setEmpID] = useState("");
+const [todayAttendance, setTodayAttendance] = useState(null);
 
   const navigate = useNavigate();
 
@@ -46,6 +49,20 @@ const [salaryDetails, setSalaryDetails] = useState(null);
       hour12: true,
     });
   }
+  const offices = [
+  {
+    name: "JPSCUBE Engineers, Shah Industrial Estate-2, Kotambi, Vadodara",
+    lat: 22.41009108171941,
+    lon: 73.30118368566995
+  },
+  {
+    name: "ECS Industries Pvt. Ltd. - 1 (Medium Voltage Division), Makarpura GIDC, Vadodara",
+    lat: 22.24859941335464,
+    lon: 73.17827168033016
+  }
+];
+
+const officeRadius = 50; // meters
 
   // Live clock
   useEffect(() => {
@@ -54,8 +71,59 @@ const [salaryDetails, setSalaryDetails] = useState(null);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+useEffect(() => {
+  if (!navigator.geolocation) return;
 
-  // Fetch employee details
+  const watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      setLocation({
+        lat,
+        lon,
+        mapLink: `https://www.google.com/maps?q=${lat},${lon}`
+      });
+
+      let matchedOffice = null;
+
+      for (let office of offices) {
+        const distance = getDistance(lat, lon, office.lat, office.lon);
+
+        if (distance <= officeRadius) {
+          matchedOffice = office.name;
+          break;
+        }
+      }
+
+      if (matchedOffice) {
+        setAddress(matchedOffice);
+      } else {
+        setAddress(`(Latitude: ${lat}, Longitude: ${lon})`);
+      }
+    },
+    (error) => {
+      console.error("Location error:", error);
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 5000
+    }
+  );
+
+  // cleanup when component unmounts
+  return () => navigator.geolocation.clearWatch(watchId);
+
+}, []);
+
+useEffect(() => {
+  if (!empID) return;
+
+  const now = new Date();
+  fetchDailyAttendance(empID, now.getFullYear(), now.getMonth());
+}, [empID]);
+
   useEffect(() => {
     const fetchEmployeeData = async () => {
       const username = localStorage.getItem("username");
@@ -69,9 +137,12 @@ const [salaryDetails, setSalaryDetails] = useState(null);
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          setEmployeeID(docSnap.id);
-          const data = docSnap.data();
+        const docSnap = querySnapshot.docs[0];
+
+        setEmployeeID(docSnap.id);   // existing
+        setEmpID(docSnap.id);        // ✅ ADD THIS LINE
+
+        const data = docSnap.data();
 
           setEmployeeData({
             name: data.Name || "NA",
@@ -97,6 +168,7 @@ const [salaryDetails, setSalaryDetails] = useState(null);
     fetchEmployeeData();
   }, []);
 
+  
   // Fetch today's attendance
   const fetchTodayAttendance = async (empID) => {
     try {
@@ -113,9 +185,12 @@ const [salaryDetails, setSalaryDetails] = useState(null);
         const docSnap = snapshot.docs[0];
         setTodayDocId(docSnap.id);
         const data = docSnap.data();
-        setLastStatus(
-          `In: ${data.in_time || "❌ Not Marked"}, Out: ${data.out_time || "❌ Not Marked"}`
-        );
+
+setTodayAttendance(data); // ✅ store today's attendance
+
+setLastStatus(
+  `In: ${data.in_time || "❌ Not Marked"}, Out: ${data.out_time || "❌ Not Marked"}`
+);
       } else {
         setTodayDocId(null);
       }
@@ -124,60 +199,86 @@ const [salaryDetails, setSalaryDetails] = useState(null);
     }
   };
 
-  const fetchDailyAttendance = async (empID) => {
+  const fetchDailyAttendance = async (empID, year, month) => {
   try {
     const q = query(
       collection(db, "attendance"),
       where("employee_id", "==", empID)
     );
+
     const snapshot = await getDocs(q);
-    
 
     if (!snapshot.empty) {
-      const startDate = new Date("2025-09-01T00:00:00"); // From Sep 1, 2025
+
+      const startOfMonth = new Date(year, month, 1);
+      const startOfNextMonth = new Date(year, month + 1, 1);
 
       const records = snapshot.docs
-          .map((docSnap) => {
-            const data = docSnap.data();
-            const timestamp = data.timestamp?.toDate
-              ? data.timestamp.toDate()
-              : new Date(data.timestamp || 0);
+        .map((docSnap) => {
+          const data = docSnap.data();
 
-            // Determine status
-            let status = "pending"; // default
-            if (data.statusIn && data.statusOut) {
-              status =
-                data.statusIn === "approved" && data.statusOut === "approved"
-                  ? "approved"
-                  : "pending";
-            } else if (data.status) {
-              status = data.status;
-            }
+          const timestamp = data.timestamp?.toDate
+            ? data.timestamp.toDate()
+            : new Date(data.timestamp || 0);
 
-            return {
-              date: data.date || "NA",
-              in_time: data.in_time || "❌ Not Marked",
-              out_time: data.out_time || "❌ Not Marked",
-              status,
-              timestamp,
-            };
-          })
-          // Filter all records from Sep 2025 onward
-          .filter((rec) => rec.timestamp >= startDate)
-          // Sort by date descending
-          .sort((a, b) => b.timestamp - a.timestamp);
+          let status = "pending";
+          if (data.statusIn && data.statusOut) {
+            status =
+              data.statusIn === "approved" && data.statusOut === "approved"
+                ? "approved"
+                : "pending";
+          } else if (data.status) {
+            status = data.status;
+          }
 
-        setDailyAttendance(records);
+          return {
+            date: data.date || "NA",
+            in_time: data.in_time || "❌ Not Marked",
+            out_time: data.out_time || "❌ Not Marked",
+            status,
+            timestamp,
+          };
+        })
+        .filter(
+          (rec) =>
+            rec.timestamp >= startOfMonth &&
+            rec.timestamp < startOfNextMonth
+        )
+        .sort((a, b) => b.timestamp - a.timestamp);
 
-    } else {
-      setDailyAttendance([]);
+      setDailyAttendance(records);
     }
   } catch (err) {
     console.error("Error fetching daily attendance:", err);
   }
 };
+const hasInTime =
+  todayAttendance?.in_time && todayAttendance?.in_time !== "WeeklyOff";
 
+const hasOutTime =
+  todayAttendance?.out_time && todayAttendance?.out_time !== "WeeklyOff";
 
+const isWeeklyOffToday =
+  todayAttendance?.in_time === "WeeklyOff" ||
+  todayAttendance?.out_time === "WeeklyOff";
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth radius in meters
+  const toRad = (value) => (value * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
   // Fetch monthly summary
   const fetchMonthlySummary = async (empID) => {
   try {
@@ -282,28 +383,38 @@ const handleMarkIn = async () => {
       return;
     }
 
-    // 🔑 Create custom doc ID -> EMPID_DATE_TIME
     const cleanDate = todayDate.replace(/\//g, "-");
-    const cleanTime = inTime.replace(/:/g, "-").replace(/ /g, "");
-    const docId = `${safeEmpId}_${cleanDate}_${cleanTime}`;
+    const docId = `${safeEmpId}_${cleanDate}`;
     const todayRef = doc(db, "attendance", docId);
 
     await setDoc(todayRef, {
-      employee_id: safeEmpId,
-      name: employeeData.name,
-      date: todayDate,
-      in_time: inTime,
-      out_time: null,
-      statusIn: "pending",  // ✅ Separate field for In status
-      statusOut: null,      // ✅ Will be updated later when marking Out
-      timestamp: serverTimestamp(),
-    });
+  employee_id: safeEmpId,
+  name: employeeData.name,
+  date: todayDate,
+
+  in_time: inTime,
+  out_time: null,
+
+  statusIn: "pending",
+  statusOut: null,
+
+  // ✅ In Time Location
+  in_address: address || "Unknown Location",
+  in_latitude: location?.lat || null,
+  in_longitude: location?.lon || null,
+
+  // Out location empty initially
+  
+
+  timestamp: serverTimestamp(),
+});
 
     setTodayDocId(docId);
     setLastStatus(`In: ${inTime}, Out: ❌ Not Marked`);
     alert(`✅ In Time marked successfully at ${inTime}!`);
 
-    fetchDailyAttendance(employeeID);
+    const now = new Date();
+    fetchDailyAttendance(employeeID, now.getFullYear(), now.getMonth());
     fetchMonthlySummary(employeeID);
   } catch (err) {
     console.error("Error marking In Time:", err);
@@ -368,10 +479,15 @@ const handleMarkOut = async () => {
 
     // ✅ Update with Out Time + statusOut
     const todayRef = doc(db, "attendance", targetDocId);
-    await updateDoc(todayRef, {
-      out_time: outTime,
-      statusOut: "pending",  // ✅ separate status field for Out
-    });
+   await updateDoc(todayRef, {
+    out_time: outTime,
+    statusOut: "pending",
+
+    // ✅ Out Time Location
+    out_address: address || "Unknown Location",
+    out_latitude: location?.lat || null,
+    out_longitude: location?.lon || null,
+  });
 
     setMessage("✅ Out Time marked successfully.");
     setLastStatus((prev) =>
@@ -379,7 +495,8 @@ const handleMarkOut = async () => {
     );
     alert(`✅ Out Time marked successfully at ${outTime}!`);
 
-    fetchDailyAttendance(employeeID);
+    const now = new Date();
+fetchDailyAttendance(employeeID, now.getFullYear(), now.getMonth());
     fetchMonthlySummary(employeeID);
   } catch (err) {
     console.error("Error marking Out Time:", err);
@@ -388,7 +505,100 @@ const handleMarkOut = async () => {
 
   setSubmitting(false);
 };
+function getInTimeColor(inTime, index, records) {
+  if (!inTime || inTime.includes("❌")) return "black";
 
+  const time = new Date(`1970-01-01 ${inTime}`);
+
+  const greenLimit = new Date("1970-01-01 09:10:00");
+  const yellowLimit = new Date("1970-01-01 09:15:00");
+
+  if (time < greenLimit) return "green";
+  if (time > yellowLimit) return "red";
+
+  // Sort records ascending for counting (1 → 30)
+  const sortedRecords = [...records].sort((a, b) => a.timestamp - b.timestamp);
+
+  let yellowCount = 0;
+
+  for (let i = 0; i < sortedRecords.length; i++) {
+    const t = new Date(`1970-01-01 ${sortedRecords[i].in_time}`);
+
+    if (t >= greenLimit && t <= yellowLimit) {
+      yellowCount++;
+
+      if (sortedRecords[i].in_time === inTime) {
+        return yellowCount <= 2 ? "orange" : "red";
+      }
+    }
+  }
+
+  return "orange";
+}
+const handleWeeklyOff = async () => {
+  if (!employeeData || submitting) return;
+  setSubmitting(true);
+
+  try {
+    const todayDate = new Date().toLocaleDateString("en-GB");
+    const currentTime = formatTime();
+    const safeEmpId = employeeID || "NA";
+
+    // ✅ Check if attendance already exists today
+    const q = query(
+      collection(db, "attendance"),
+      where("employee_id", "==", safeEmpId),
+      where("date", "==", todayDate)
+    );
+
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      alert("⚠️ Attendance already marked today!");
+      setSubmitting(false);
+      return;
+    }
+
+    // 🔑 Create unique document ID
+    const cleanDate = todayDate.replace(/\//g, "-");
+    const cleanTime = currentTime.replace(/:/g, "-").replace(/ /g, "");
+    const docId = `${safeEmpId}_${cleanDate}_WO_${cleanTime}`;
+
+    const todayRef = doc(db, "attendance", docId);
+
+    await setDoc(todayRef, {
+  employee_id: safeEmpId,
+  name: employeeData.name,
+  date: todayDate,
+
+  in_time: "WeeklyOff",
+  out_time: "WeeklyOff",
+
+  statusIn: "pending",
+  statusOut: "pending",
+
+  weeklyOffRequested: true,
+  weekly_off_time: currentTime,
+
+  timestamp: serverTimestamp(),
+});
+
+    setTodayDocId(docId);
+    setLastStatus(`📅 Weekly Off marked at ${currentTime}`);
+
+    alert(`✅ Weekly Off marked successfully at ${currentTime}!`);
+
+    const now = new Date();
+    fetchDailyAttendance(employeeID, now.getFullYear(), now.getMonth());
+    fetchMonthlySummary(employeeID);
+
+  } catch (err) {
+    console.error("Error marking Weekly Off:", err);
+    setMessage("❌ Error marking Weekly Off.");
+  }
+
+  setSubmitting(false);
+};
 
 
 
@@ -460,47 +670,95 @@ const handleMarkOut = async () => {
         </div>
         
 
-        <div className="attendance-card">
-          <label><strong>📌 Choose Section:</strong></label>
-          <select
-            className="btn-submit"
-            onChange={(e) => setSelectedSection(e.target.value)}
-            value={selectedSection}
-          >
-            <option value="">-- Select --</option>
-            <option value="in">✅ In Time</option>
-            <option value="out">🚪 Out Time</option>
-          </select>
-        </div>
+        
 
-        {selectedSection && (
-          <div className="attendance-card">
-            <p><strong>👤 Name:</strong> {employeeData.name}</p>
-            <p><strong>🎓 Designation :</strong> {employeeData.Role}</p>
-            <p><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</p>
-            <p><strong>🕒 Time:</strong> {currentTime}</p>
-            {lastStatus && <p><strong>📌 Today’s Status:</strong> {lastStatus}</p>}
-          </div>
-        )}
+  <div className="attendance-card">
+    <label><strong>📌 Choose Section:</strong></label>
+    <select
+  className="btn-submit"
+  onChange={(e) => setSelectedSection(e.target.value)}
+  value={selectedSection}
+>
+  <option value="">-- Select --</option>
 
-        {selectedSection === "in" && (
-          <div className="attendance-card">
-            <h3>✅ Mark In Time</h3>
-            <button onClick={handleMarkIn} disabled={submitting} className="btn-submit">
-              {submitting ? "Submitting..." : "Submit In Time"}
-            </button>
-          </div>
-        )}
+  <option value="in" disabled={isWeeklyOffToday || hasInTime}>
+    ✅ In Time
+  </option>
 
-        {selectedSection === "out" && (
-          <div className="attendance-card">
-            <h3>🚪 Mark Out Time</h3>
-            <button onClick={handleMarkOut} disabled={submitting} className="btn-submit">
-              {submitting ? "Submitting..." : "Submit Out Time"}
-            </button>
-          </div>
-        )}
-      </div>
+  <option value="out" disabled={isWeeklyOffToday || hasOutTime}>
+    🚪 Out Time
+  </option>
+
+  <option value="weeklyoff" disabled={hasInTime || hasOutTime}>
+    📅 Weekly Off
+  </option>
+</select>
+  </div>
+
+  {selectedSection && (
+    <div className="attendance-card">
+      <p><strong>👤 Name:</strong> {employeeData.name}</p>
+      <p><strong>🎓 Designation :</strong> {employeeData.Role}</p>
+      <p><strong>📅 Date:</strong> {new Date().toLocaleDateString()}</p>
+      <p><strong>🕒 Time:</strong> {currentTime}</p>
+
+      {lastStatus && (
+        <p><strong>📌 Today’s Status:</strong> {lastStatus}</p>
+      )}
+
+      {/* Hide Location & Address when Weekly Off */}
+      {location && selectedSection !== "weeklyoff" && (
+        <>
+          
+
+          <p>
+            <strong>🏠 Address:</strong> {address || "Fetching address..."}
+          </p>
+        </>
+      )}
+    </div>
+  )}
+
+  {selectedSection === "in" && (
+    <div className="attendance-card">
+      <h3>✅ Mark In Time</h3>
+      <button
+        onClick={handleMarkIn}
+        disabled={submitting}
+        className="btn-submit"
+      >
+        {submitting ? "Submitting..." : "Submit In Time"}
+      </button>
+    </div>
+  )}
+
+  {selectedSection === "out" && (
+    <div className="attendance-card">
+      <h3>🚪 Mark Out Time</h3>
+      <button
+        onClick={handleMarkOut}
+        disabled={submitting}
+        className="btn-submit"
+      >
+        {submitting ? "Submitting..." : "Submit Out Time"}
+      </button>
+    </div>
+  )}
+
+  {selectedSection === "weeklyoff" && (
+    <div className="attendance-card">
+      <h3>📅 Mark Weekly Off</h3>
+      <button
+        onClick={handleWeeklyOff}
+        disabled={submitting}
+        className="btn-submit"
+      >
+        {submitting ? "Submitting..." : "Submit Weekly Off"}
+      </button>
+    </div>
+  )}
+
+</div>
 
       {/* Dynamic Attendance Summary Table */}
       <div className="attendance-summary">
@@ -517,23 +775,34 @@ const handleMarkOut = async () => {
             </tr>
           </thead>
           <tbody>
-            {monthlySummary.length === 0 ? (
-              <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>No summary available</td>
-              </tr>
-            ) : (
-              monthlySummary.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.month}</td>
-                  <td>{row.totalDays}</td>
-                  <td>{row.sundays}</td>
-                  <td>{row.present}</td>
-                  <td>{row.halfDays}</td>
-                  <td>{row.absent}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
+  {monthlySummary.length === 0 ? (
+    <tr>
+      <td colSpan="6" style={{ textAlign: "center" }}>
+        No summary available
+      </td>
+    </tr>
+  ) : (
+    monthlySummary.map((row, idx) => (
+      <tr
+  key={idx}
+  style={{ cursor: "pointer" }}
+  onClick={() => {
+    const [monthName, year] = row.month.split(" ");
+    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+
+    fetchDailyAttendance(empID, Number(year), monthIndex);
+  }}
+>
+        <td>{row.month}</td>
+        <td>{row.totalDays}</td>
+        <td>{row.sundays}</td>
+        <td>{row.present}</td>
+        <td>{row.halfDays}</td>
+        <td>{row.absent}</td>
+      </tr>
+    ))
+  )}
+</tbody>
         </table>
 
         {/* <button className="salary-btn" onClick={handleSalaryCalculator} disabled={!isSalaryWindowOpen}
@@ -583,7 +852,14 @@ const handleMarkOut = async () => {
               dailyAttendance.map((rec, index) => (
                 <tr key={index}>
                   <td>{rec.date}</td>
-                  <td>{rec.in_time}</td>
+                  <td
+  style={{
+    color: getInTimeColor(rec.in_time, index, dailyAttendance),
+    fontWeight: "bold"
+  }}
+>
+  {rec.in_time}
+</td>
                   <td>{rec.out_time}</td>
                   <td>{rec.status}</td>
                 </tr>
