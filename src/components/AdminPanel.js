@@ -591,20 +591,36 @@ const handleDeleteEmployee = async () => {
   if (!window.confirm(`Are you sure you want to delete ${empToDelete.Name}?`)) return;
 
   try {
-    await deleteDoc(doc(db, "Users", deleteEmpId.trim().toUpperCase()));
-    alert("✅ Employee deleted successfully!");
 
-    // Clear state
+    const empId = deleteEmpId.trim().toUpperCase();
+
+    // ✅ Delete all attendance records first
+    const attendanceQuery = query(
+      collection(db, "attendance"),
+      where("employee_id", "==", empId)
+    );
+
+    const attendanceSnap = await getDocs(attendanceQuery);
+
+    for (const attendanceDoc of attendanceSnap.docs) {
+      await deleteDoc(attendanceDoc.ref);
+    }
+
+    // ✅ Delete user
+    await deleteDoc(doc(db, "Users", empId));
+
+    alert("✅ Employee and attendance history deleted successfully!");
+
     setDeleteEmpId("");
     setEmpToDelete(null);
     setDeleteModal(false);
 
-    // Refresh stats
     fetchEmployeeStats(
       new Date(new Date().setDate(new Date().getDate() - 30)),
       new Date(),
       "Last 30 Days"
     );
+
   } catch (error) {
     console.error("🔥 Error deleting employee:", error);
     alert("❌ Failed to Remove employee");
