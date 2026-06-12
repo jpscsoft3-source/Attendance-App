@@ -69,6 +69,7 @@ function App() {
         <Route path="/supervisor-req" element={<SupervisorReq />} />
         <Route path="/supervisorpanel" element={<SupervisorPanel />} />
         <Route path="/worker-link" element={<WorkerLinkPage />} />
+        
 
       </Routes>
     </Router>

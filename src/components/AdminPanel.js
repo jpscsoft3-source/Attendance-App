@@ -22,6 +22,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { Helmet } from "react-helmet";
 import { CheckCircle } from "lucide-react"; // ✅ Lucide icon (available in shadcn/ui)
+import bcrypt from 'bcryptjs'; 
 
 export default function AdminPanel() {
   const [dateRange, setDateRange] = useState(null); // keep track of filter range
@@ -1042,7 +1043,8 @@ const { empId, Name, Role, username, password, mobile, salary, SubDesignation, r
   // Add fields conditionally
   if (!isWorkerOrIntern) {
     userDoc.Role = Role;
-    userDoc.password = password; // ⚠️ hash in production
+   const hashedPassword = await bcrypt.hash(password, 10);
+    userDoc.password = hashedPassword;
     userDoc.SubDesignation = SubDesignation;
   } else {
     // Intern or Worker/Helper

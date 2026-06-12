@@ -471,6 +471,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import emailjs from 'emailjs-com';
 import { useRef } from 'react';
+import bcrypt from 'bcryptjs';
 
 
 const Login = () => {
@@ -504,7 +505,8 @@ const Login = () => {
         const userData = doc.data();
 
         // Check password (case-sensitive)
-        if (userData.password === password) {
+        const isMatch = await bcrypt.compare(password, userData.password);
+        if (isMatch) {
           localStorage.setItem('username', userData.username);
           localStorage.setItem('employeeName', userData.Name);
           localStorage.setItem('Role', userData.Role);
