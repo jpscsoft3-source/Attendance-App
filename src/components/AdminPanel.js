@@ -35,8 +35,10 @@ export default function AdminPanel() {
   const [filterPopup, setFilterPopup] = useState(false);
   const [addModal, setAddModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
   const [summaryHeading, setSummaryHeading] = useState("📄 Employee Summary (Last 30 Days)");
-
+  const [searchUser, setSearchUser] = useState("");
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [customFromDate, setCustomFromDate] = useState("");
   const [customToDate, setCustomToDate] = useState("");
   const [showCustomRange, setShowCustomRange] = useState(false);
@@ -46,6 +48,10 @@ export default function AdminPanel() {
 const [eligibleUsers, setEligibleUsers] = useState([]);
 const [selectedAbsentDates, setSelectedAbsentDates] = useState({});
 const [showPresentModal, setShowPresentModal] = useState(false);
+const [showPasswordEditModal, setShowPasswordEditModal] = useState(false);
+const [selectedUser, setSelectedUser] = useState(null);
+const [newPassword, setNewPassword] = useState("");
+const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 const [selectedPresentDates, setSelectedPresentDates] = useState({});
 const [selectedEmployee, setSelectedEmployee] = useState(null);
 const [attendanceHistory, setAttendanceHistory] = useState([]);
@@ -230,6 +236,36 @@ const handleLogout = () => {
     localStorage.clear();
     navigate("/");
   };
+
+
+  const fetchAllUsers = async () => {
+  try {
+    const snap = await getDocs(collection(db, "Users"));
+
+    const users = snap.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setAllUsers(users);
+    setFilteredUsers(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+  }
+};
+
+const handleUserSearch = (value) => {
+  setSearchUser(value);
+
+  const filtered = allUsers.filter(
+    (user) =>
+      user.Name?.toLowerCase().includes(value.toLowerCase()) ||
+      user.id?.toLowerCase().includes(value.toLowerCase()) ||
+      user.responsible?.toLowerCase().includes(value.toLowerCase())
+  );
+
+  setFilteredUsers(filtered);
+};
 
 const fetchAttendanceStats = async () => {
   const updatedStats = await Promise.all(
@@ -1321,6 +1357,8 @@ const handleOpenPresentModal = async () => {
   const storedName = localStorage.getItem('employeeName') || 'Admin';
   setAdminName(storedName);
   
+   fetchAllUsers();
+
   const q = query(collection(db, "attendance"), where("status", "==", "pending"));
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1565,6 +1603,230 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 <button className="admin-button mt-2 ml-2" onClick={handleOpenPresentModal}>
   ✅ Mark Present
 </button>
+
+<button
+  className="admin-button mt-2 ml-2 password-btn"
+  onClick={() => setShowChangePasswordModal(true)}
+>
+  Change Password
+</button>
+
+
+{/* for popup  */}
+
+
+{showChangePasswordModal && (
+  <div className="modal-overlay">
+    <div className="modal-box">
+      <h2>User Details</h2>
+
+      {/* Search Box */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "12px",
+          gap: "10px",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search User..."
+          value={searchUser}
+          onChange={(e) => handleUserSearch(e.target.value)}
+          className="admin-input"
+        />
+      </div>
+
+      <div className="table-scroll">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Sr.No</th>
+              <th>Real Name</th>
+              <th>UserName</th>
+              <th>Role</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredUsers.map((emp, index) => (
+              <tr key={emp.id}>
+                <td>{index + 1}</td>
+                <td>{emp.Name}</td>
+                <td>{emp.id}</td>
+                <td>{emp.responsible}</td>
+
+                <td>
+                  <button
+                    className="edit-btn"
+                    onClick={() => {
+                      setSelectedUser(emp);
+                      setNewPassword("");
+                      setShowPasswordEditModal(true);
+                    }}
+                  >
+                    Change
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {showPasswordEditModal && selectedUser && (
+  <div className="modal-overlay">
+    <div className="modal-box password-modal">
+      <h2>
+        User Details : {selectedUser.Name}
+      </h2>
+
+      <div className="form-row">
+        <label>User Name</label>
+
+        <input
+          type="text"
+          value={selectedUser.id}
+          onChange={(e) =>
+            setSelectedUser({
+              ...selectedUser,
+              id: e.target.value,
+            })
+          }
+          className="admin-input"
+        />
+      </div>
+
+<div className="form-row">
+  <label>New Password</label>
+
+  <input
+    type="password"
+    placeholder="Enter New Password"
+    value={newPassword}
+    onChange={(e) => setNewPassword(e.target.value)}
+    className="admin-input"
+  />
+</div>
+
+<div className="form-row">
+  <label>Role</label>
+
+  <select
+    className="admin-input"
+    value={selectedUser.responsible}
+    onChange={(e) =>
+      setSelectedUser({
+        ...selectedUser,
+        responsible: e.target.value,
+      })
+    }
+  >
+    <option value="">Select Role</option>
+    <option value="Employee">Employee</option>
+    <option value="Supervisor">Supervisor</option>
+    <option value="Manager">Manager</option>
+    <option value="Worker/Helper">Worker/Helper</option>
+    <option value="Intern">Intern</option>
+  </select>
+</div>
+
+      <div className="modal-actions">
+        <button
+          className="admin-button"
+          onClick={() => {
+            setShowPasswordEditModal(false);
+            setSelectedUser(null);
+            setNewPassword("");
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="admin-button"
+          onClick={async () => {
+            try {
+              const oldId = employeeStats.find(
+                (emp) => emp.Name === selectedUser.Name
+              )?.id;
+
+              if (!oldId) {
+                alert("User not found!");
+                return;
+              }
+
+              // ✅ Fetch old user data
+              const oldUserRef = doc(db, "Users", oldId);
+              const oldUserSnap = await getDoc(oldUserRef);
+
+              if (!oldUserSnap.exists()) {
+                alert("User document not found!");
+                return;
+              }
+
+              const oldData = oldUserSnap.data();
+
+              // ✅ Hash new password if entered
+              let updatedPassword = oldData.password;
+
+              if (newPassword.trim() !== "") {
+                updatedPassword = await bcrypt.hash(newPassword, 10);
+              }
+
+              // ✅ New updated user object
+              const updatedUser = {
+                ...oldData,
+                username: selectedUser.id,
+                responsible: selectedUser.responsible,
+                password: updatedPassword,
+              };
+
+              // ✅ If username changed → create new doc + delete old doc
+              if (oldId !== selectedUser.id) {
+                await setDoc(doc(db, "Users", selectedUser.id), updatedUser);
+                await deleteDoc(doc(db, "Users", oldId));
+              } else {
+                // ✅ Normal update
+                await updateDoc(oldUserRef, updatedUser);
+              }
+
+              alert("✅ User updated successfully!");
+
+              setShowPasswordEditModal(false);
+              setNewPassword("");
+              setSelectedUser(null);
+
+              // Refresh table
+              fetchEmployeeStats(
+                new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                new Date(),
+                "Current Month"
+              );
+
+            } catch (error) {
+              console.error("Update Error:", error);
+              alert("❌ Failed to update user");
+            }
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+      <button
+        className="admin-button mt-2"
+        onClick={() => setShowChangePasswordModal(false)}
+      >
+        ✖ Close
+      </button>
+    </div>
+  </div>
+)}
       </div>
       <div className="logout-container">
   <button
@@ -1577,7 +1839,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 >
   Logout
 </button>
-<p className="app-version">Version 1.1.7</p>
+<p className="app-version">Version 2.1.0</p>
 
 </div>
 
@@ -2269,7 +2531,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
                     : record.statusOut === "pending"
                     ? "row-pending"
                     : "row-rejected";
-
+                
                 return (
                   <tr key={idx} className={rowClass}>
                   <td>{record.date || "—"}</td>

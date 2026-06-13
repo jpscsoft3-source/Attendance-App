@@ -109,7 +109,21 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
-      <button className="back-button" onClick={() => navigate(-1)}>⬅️ Back</button>
+      <button
+  className="back-button"
+  onClick={() => {
+    const confirmLogout = window.confirm(
+      "Are you sure you want to logout?"
+    );
+
+    if (confirmLogout) {
+      localStorage.clear();
+      navigate("/");
+    }
+  }}
+>
+  Logout
+</button>
       <h1 className="welcome-text">Welcome, {employeeName} 👋</h1>
       <div className="dashboard-buttons">
         <button className="dashboard-button" onClick={handleAttendanceNavigation}>📋 Attendance</button>

@@ -1143,3 +1143,44 @@ Make table responsive
 .attendance-history-box{
   position:relative;
 }
+
+.password-btn {
+  white-space: nowrap;
+  width: auto !important;
+  min-width: 170px;
+  padding: 0.8rem 1rem;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.form-row label {
+  width: 120px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  margin: 0;
+}
+
+.form-row .admin-input {
+  flex: 1;
+  margin: 0;
+  height: 38px;
+}
+
+.password-modal {
+  width: 600px !important;
+  max-width: 90%;
+  padding: 28px;
+
+  position: fixed;
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+}
