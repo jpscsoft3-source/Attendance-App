@@ -1606,7 +1606,10 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
 
 <button
   className="admin-button mt-2 ml-2 password-btn"
-  onClick={() => setShowChangePasswordModal(true)}
+  onClick={async () => {
+    await fetchAllUsers();
+    setShowChangePasswordModal(true);
+  }}
 >
   Change Password
 </button>
@@ -1748,9 +1751,7 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
           className="admin-button"
           onClick={async () => {
             try {
-              const oldId = employeeStats.find(
-                (emp) => emp.Name === selectedUser.Name
-              )?.id;
+              const oldId = selectedUser.id;
 
               if (!oldId) {
                 alert("User not found!");
@@ -1793,6 +1794,8 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
               }
 
               alert("✅ User updated successfully!");
+
+              await fetchAllUsers();
 
               setShowPasswordEditModal(false);
               setNewPassword("");

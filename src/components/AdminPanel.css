@@ -1176,11 +1176,5 @@ Make table responsive
   width: 600px !important;
   max-width: 90%;
   padding: 28px;
-
-  position: fixed;
-  top: 50%;
-  left: 50%;
-
-  transform: translate(-50%, -50%);
   z-index: 2000;
 }
