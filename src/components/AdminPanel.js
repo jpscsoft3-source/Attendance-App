@@ -472,62 +472,114 @@ const handleDownloadSelected = async () => {
 
       const allDates = getDatesBetween(startDate, endDate);
 
-      const sheetData = allDates.map(date => {
+    const sheetData = allDates.map(date => {
 
-        const record = empRecords.find(r => {
-          const attDate = r.timestamp?.toDate?.();
-          return attDate && attDate.toDateString() === date.toDateString();
-        });
+  const record = empRecords.find(r => {
+    const attDate = r.timestamp?.toDate?.();
+    return attDate && attDate.toDateString() === date.toDateString();
+  });
 
-        const dateStr = date.toLocaleDateString("en-GB");
+  const dateStr = date.toLocaleDateString("en-GB");
 
-        if (record) {
-          return {
-            Date: record.date || dateStr,
-            "In Time": record.in_time || "—",
-            "Out Time": record.out_time || "—",
-            "Approved By": record.approvedByOut || "—",
-            "In Location": record.in_location || "—",
-            "Out Location": record.out_location || "—"
-          };
-        }
+  // PRESENT
+  if (record) {
+    return {
+      Date: record.date || dateStr,
+      Attendance: "P",
+      "In Time": record.in_time || "—",
+      "Out Time": record.out_time || "—",
+      "Approved By (In)": record.approvedByIn || "—",
+      "Approved By (Out)": record.approvedByOut || "—",
+      "In Location": record.in_address || "—",
+      "Out Location": record.out_address || "—"
+    };
+  }
 
-        const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+  const dayName = date.toLocaleDateString("en-US", {
+    weekday: "long"
+  });
 
-        if (weeklyOffDay && dayName === weeklyOffDay) {
-          return {
-            Date: dateStr,
-            "In Time": "Weekly Off",
-            "Out Time": "Weekly Off",
-            "Approved By": "—",
-            "In Location": "—",
-            "Out Location": "—"
-          };
-        }
+  // WEEKLY OFF
+  if (weeklyOffDay && dayName === weeklyOffDay) {
+    return {
+      Date: dateStr,
+      Attendance: "WO",
+      "In Time": "Weekly Off",
+      "Out Time": "Weekly Off",
+      "Approved By (In)": "—",
+      "Approved By (Out)": "—",
+      "In Location": "—",
+      "Out Location": "—"
+    };
+  }
 
-        return {
-          Date: dateStr,
-          "In Time": "Leave",
-          "Out Time": "Leave",
-          "Approved By": "—",
-          "In Location": "—",
-          "Out Location": "—"
-        };
+  // ABSENT
+  return {
+    Date: dateStr,
+    Attendance: "A",
+    "In Time": "Leave",
+    "Out Time": "Leave",
+    "Approved By (In)": "—",
+    "Approved By (Out)": "—",
+    "In Location": "—",
+    "Out Location": "—"
+  };
 
-      });
+});
 
+
+// ================= SUMMARY =================
+
+let presentCount = 0;
+let absentCount = 0;
+let weeklyOffCount = 0;
+
+sheetData.forEach(row => {
+  if (row.Attendance === "P") {
+    presentCount++;
+  } else if (row.Attendance === "A") {
+    absentCount++;
+  } else if (row.Attendance === "WO") {
+    weeklyOffCount++;
+  }
+});
+
+sheetData.push({});
+sheetData.push({
+  Date: "Present",
+  Attendance: presentCount
+});
+
+sheetData.push({
+  Date: "Absent",
+  Attendance: absentCount
+});
+
+sheetData.push({
+  Date: "Week Off",
+  Attendance: weeklyOffCount
+});
+
+sheetData.push({
+  Date: "Total",
+  Attendance:
+    presentCount +
+    absentCount +
+    weeklyOffCount
+});
       const worksheet = XLSX.utils.json_to_sheet(sheetData);
       
 
-      worksheet["!cols"] = [
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 20 },
-        { wch: 35 },
-        { wch: 35 }
+          worksheet["!cols"] = [
+        { wch: 10 }, // Date
+        { wch: 10 }, // Attendance
+        { wch: 12 }, // In Time
+        { wch: 12 }, // Out Time
+        { wch: 18 }, // Approved By In
+        { wch: 18 }, // Approved By Out
+        { wch: 60 }, // In Location
+        { wch: 60 }  // Out Location
       ];
-
       XLSX.utils.book_append_sheet(
         workbook,
         worksheet,
