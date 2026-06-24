@@ -706,7 +706,13 @@ const getEmployeeWeeklyOffCount = (weeklyOffDay, startDate, endDate) => {
   let count = 0;
   let current = new Date(startDate);
 
-  while (current <= endDate) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastDate =
+    endDate > today ? today : endDate;
+
+ while (current <= lastDate) {
 
     if (current.getDay() === offDayIndex) {
       count++;
@@ -1161,13 +1167,62 @@ const handleRowClick = async (emp) => {
     const { startDate, endDate } = dateRange || getCurrentMonthRange();
 
     data = data.filter((record) => {
-      if (!record.date) return false;
-      const [day, month, year] = record.date.split("/").map(Number);
-      const recordDate = new Date(year, month - 1, day);
-      return recordDate >= startDate && recordDate <= endDate;
+  if (!record.date) return false;
+  const [day, month, year] = record.date.split("/").map(Number);
+  const recordDate = new Date(year, month - 1, day);
+  return recordDate >= startDate && recordDate <= endDate;
+});
+
+// ==========================================
+// Build complete history including Weekly Off
+// ==========================================
+
+const finalHistory = [];
+
+let current = new Date(startDate);
+
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const maxDate = new Date(
+  Math.min(endDate.getTime(), today.getTime())
+);
+
+while (current <= maxDate) {
+
+  const dateStr = current.toLocaleDateString("en-GB");
+
+  // Attendance exists?
+  const record = data.find(r => r.date === dateStr);
+
+  if (record) {
+
+    finalHistory.push(record);
+
+  } else {
+
+    const dayName = current.toLocaleDateString("en-US", {
+      weekday: "long"
     });
 
-    setAttendanceHistory(data);
+    if (dayName === emp.weeklyOff) {
+
+      finalHistory.push({
+        date: dateStr,
+        in_time: "Weekly Off",
+        out_time: "Weekly Off",
+        isWeeklyOff: true
+      });
+
+    }
+
+  }
+
+  current.setDate(current.getDate() + 1);
+}
+
+setAttendanceHistory(finalHistory);
     setSelectedEmployeeName(emp.Name);
     setShowHistoryModal(true);
   } catch (error) {
@@ -1422,13 +1477,26 @@ const handleSaveEdit = async (emp) => {
       salary: emp.salary || 0,
       SubDesignation: emp.subRole,
       responsible: emp.responsible,
-      weeklyOff: emp.weeklyOff || ""   // ✅ NEW FIELD
+      weeklyOff: emp.weeklyOff || ""
     });
 
-    alert("✅ Employee updated successfully!");
-    setShowEditModal(false);
+    // Refresh Current Month data
+    const today = new Date();
+    const startOfMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1
+    );
 
-    fetchEmployeeStats(new Date("2000-01-01"), new Date(), "All Employees");
+    await fetchEmployeeStats(
+      startOfMonth,
+      today,
+      "Current Month"
+    );
+
+    setShowEditModal(false);
+    alert("✅ Employee updated successfully!");
+
   } catch (error) {
     console.error("Error updating employee:", error);
     alert("❌ Failed to update employee.");
@@ -2529,14 +2597,16 @@ const isSalaryWindowOpen = currentDay >= 1 && currentDay <= 7;
               .map((record, idx) => {
                 // ✅ Apply row color based on approval
                 const rowClass =
-                  record.statusOut === "approved"
-                    ? "row-approved"
-                    : record.statusOut === "pending"
-                    ? "row-pending"
-                    : "row-rejected";
-                
-                return (
-                  <tr key={idx} className={rowClass}>
+                record.isWeeklyOff
+                  ? "row-weeklyoff"
+                  : record.statusOut === "approved"
+                  ? "row-approved"
+                  : record.statusOut === "pending"
+                  ? "row-pending"
+                  : "row-rejected";
+
+              return (
+                <tr key={idx} className={rowClass}>
                   <td>{record.date || "—"}</td>
                   <td>{record.statusIn || "—"}</td>
                   <td>{record.approvedByIn || "—"}</td>

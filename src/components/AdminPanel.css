@@ -1178,3 +1178,7 @@ Make table responsive
   padding: 28px;
   z-index: 2000;
 }
+
+.row-weeklyoff{
+    background:#FFF59D !important;
+}
